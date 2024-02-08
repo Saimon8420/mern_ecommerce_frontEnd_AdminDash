@@ -24,7 +24,7 @@ export default function AddProducts() {
     const [sizes, setSizes] = useState([]);
 
     // error handling
-    const [fileSizeError, seFileSizeError] = useState(false);
+    const [fileSizeError, setFileSizeError] = useState(false);
     const [titleError, setTitleError] = useState(false);
     const [descriptionError, setDescriptionError] = useState(false);
 
@@ -36,19 +36,57 @@ export default function AddProducts() {
     // handle imageUpload
     const handleImageFileChange = (e) => {
         // Access the selected file from event.target.files
-        const file = e.target.files[0];
+        // console.log(e);
+        const files = e.target.files;
         const maxSize = (1024 / 2) * 1024;
-        if (file.size > maxSize) {
-            seFileSizeError(true);
+        // to store files
+        const fileList = [];
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (file.size > maxSize) {
+                setFileSizeError(true);
+            }
+            else {
+                fileList.push(file);
+                setFileSizeError(false);
+            }
         }
-        else {
-            setFile(file);
-            // Create URL for the selected image
-            const url = URL.createObjectURL(file);
-            setImageUrl(url);
+        // storing file into states
+        if (file === null) {
+            setFile(fileList);
         }
+        if (file !== null) {
+            setFile([...file, ...fileList]);
+        }
+
+        // Create URL for the selected image
+        const objectURLs = []; // Array to store object URLs for each file
+        for (let i = 0; i < fileList?.length; i++) {
+            const eachFile = fileList[i];
+            const url = URL.createObjectURL(eachFile); // Create object URL for each file
+            objectURLs.push(url); // Store the object URL in the array
+        }
+        // storing file into imageUrlState
+        if (imageUrl === null) {
+            setImageUrl(objectURLs);
+        }
+        if (imageUrl !== null) {
+            setImageUrl([...imageUrl, ...objectURLs]);
+        }
+
     };
 
+    // handle RemoveImage
+    const handleRemoveImage = (indexToRemove) => {
+        const updatedImageUrl = imageUrl.filter((_, index) => index !== indexToRemove);
+        const updateFile = file.filter((_, index) => index !== indexToRemove);
+        setFile(updateFile);
+        setImageUrl(updatedImageUrl);
+        // Clear the file input value
+        fileInputRef.current.value = "";
+    };
+
+    //  handleFileSubmit
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -70,11 +108,13 @@ export default function AddProducts() {
         sizes.forEach(size => {
             formData.append("sizes[]", size);
         });
-        // If you want to include the file (image) in the FormData
-        if (file) {
-            formData.append("image", file);
-        }
 
+        // if we want to include the file (image) in the FormData && Append each image individually
+        if (file) {
+            file.forEach(each => {
+                formData.append("images", each);
+            })
+        }
         // Log the contents of formData, without this loop approach formData will gives empty output when we console it.
         // for (const pair of formData.entries()) {
         //     console.log(pair[0] + ', ' + pair[1]);
@@ -96,6 +136,7 @@ export default function AddProducts() {
                 // Handle errors
             });
     }
+
 
     return (
         <div className="grid gap-5 shadow-md rounded-sm mx-2 sm:mx-4 md:mx-4 lg:mx-4 xl:mx-4 my-2 sm:my-4 md:my-4 lg:my-4 xl:my-4 p-2 sm:p-4 lg:p-4 md:p-4 xl:p-4">
@@ -199,10 +240,10 @@ export default function AddProducts() {
                             defaultValue={onSaleVal[1]}
                             onChange={(e) => {
                                 if (e.target.innerText === onSaleVal[0]) {
-                                    setOnSale(true);
+                                    setOnSale(false);
                                 }
                                 else {
-                                    setOnSale(false)
+                                    setOnSale(true)
                                 }
                             }
                             }
@@ -244,31 +285,26 @@ export default function AddProducts() {
 
                     {/* Product Image */}
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 border border-dashed p-2 rounded-md">
-                        <div className="w-full relative">
-                            {/* Remove Preview Image */}
-                            {file !== null &&
-                                <div className="absolute right-0 hover:cursor-pointer"
-                                    onClick={() => {
-                                        setFile(null);
-                                        setImageUrl(null);
-                                        // Clear the file input value
-                                        fileInputRef.current.value = "";
-                                    }}
+                        {file !== null && file.map((fileItem, index) => (
+                            <div key={index} className="relative">
+                                {/* Remove Preview Image */}
+                                <div className="absolute top-0 right-0 hover:cursor-pointer"
+                                    onClick={() => handleRemoveImage(index)}
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                                     </svg>
                                 </div>
-                            }
-
-                            {imageUrl !== null && <img style={{ maxHeight: "300px", width: "100%" }}
-                                src={imageUrl} alt="previewImage"
-                                className="rounded-md"
-                            />}
-                        </div>
+                                <img style={{ maxHeight: "300px", width: "100%", marginBottom: "10px" }}
+                                    src={imageUrl[index]} alt={`previewImage-${index}`}
+                                    className="rounded-md"
+                                />
+                            </div>
+                        ))}
 
                         <div className="w-full">
                             <input
+                                disabled={file?.length >= 3}
                                 type="file"
                                 accept="image/png, image/jpeg, image/jpg"
                                 onChange={handleImageFileChange}
@@ -276,21 +312,30 @@ export default function AddProducts() {
                                 id="file-input"
                                 name="image"
                                 ref={fileInputRef}
+                                multiple
                             />
+
                             <label htmlFor="file-input">
-                                <Button component="span" variant="contained" startIcon={<CloudUploadIcon />}>
+                                <Button
+                                    disabled={file?.length >= 3}
+                                    component="span" variant="contained" startIcon={<CloudUploadIcon />}>
                                     Upload Image
                                 </Button>
                             </label>
                             {
+                                file !== null && <p className="my-2">{file?.length} file selected</p>
+                            }
+                            {
                                 fileSizeError ?
                                     <p className="text-red-500 mt-2">File size is too big to upload</p>
                                     :
-                                    <p className="mt-2 opacity-70">Only supported [.png]/[.jpeg]/[.jpg], maxSize 500KB</p>
+                                    <p className="mt-2 opacity-60">Only supported [.png*/.jpeg*/.jpg*]
+                                        <br />Maximum limit 3 image
+                                        <br />MaxSize each image 500KB</p>
                             }
-
                         </div>
                     </div>
+
 
                     {/* Buttons */}
                     <hr />
