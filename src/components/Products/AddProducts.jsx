@@ -1,15 +1,12 @@
 import { Autocomplete, Button, TextField } from "@mui/material";
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { stringValidator } from "../../assets/regex";
 
 export default function AddProducts() {
     const inStockVal = ["stock", "stockOut"];
     const onSaleVal = ["onSale", "notSale"];
     const productSizes = ["XS", "S", "M", "L", "XL", "2XL"];
-
-    // Create a ref for the file input
-    const fileInputRef = useRef(null);
 
     // states to save inputs
     const [title, setTitle] = useState("");
@@ -19,7 +16,7 @@ export default function AddProducts() {
     const [imageUrl, setImageUrl] = useState(null);
     const [price, setPrice] = useState(0);
     const [newPrice, setNewPrice] = useState(0);
-    const [inStock, setInStock] = useState(false);
+    const [inStock, setInStock] = useState(true);
     const [onSale, setOnSale] = useState(false);
     const [sizes, setSizes] = useState([]);
 
@@ -36,42 +33,55 @@ export default function AddProducts() {
     // handle imageUpload
     const handleImageFileChange = (e) => {
         // Access the selected file from event.target.files
-        // console.log(e);
         const files = e.target.files;
         const maxSize = (1024 / 2) * 1024;
         // to store files
         const fileList = [];
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            if (file.size > maxSize) {
-                setFileSizeError(true);
+        if (files?.length > 3) {
+            alert("Maximum file limit crossed!");
+        }
+        else {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (file?.size > maxSize) {
+                    setFileSizeError(true);
+                }
+                else {
+                    fileList.push(file);
+                    setFileSizeError(false);
+                }
+            }
+            // storing file into states
+            if (file === null) {
+                setFile(fileList);
             }
             else {
-                fileList.push(file);
-                setFileSizeError(false);
+                const totalLength = file?.length + fileList?.length;
+                if (totalLength <= 3) {
+                    setFile([...file, ...fileList]);
+                }
+                else {
+                    alert("Maximum file limit crossed!");
+                }
             }
-        }
-        // storing file into states
-        if (file === null) {
-            setFile(fileList);
-        }
-        if (file !== null) {
-            setFile([...file, ...fileList]);
-        }
 
-        // Create URL for the selected image
-        const objectURLs = []; // Array to store object URLs for each file
-        for (let i = 0; i < fileList?.length; i++) {
-            const eachFile = fileList[i];
-            const url = URL.createObjectURL(eachFile); // Create object URL for each file
-            objectURLs.push(url); // Store the object URL in the array
-        }
-        // storing file into imageUrlState
-        if (imageUrl === null) {
-            setImageUrl(objectURLs);
-        }
-        if (imageUrl !== null) {
-            setImageUrl([...imageUrl, ...objectURLs]);
+            // Create URL for the selected image
+            const objectURLs = []; // Array to store object URLs for each file
+            for (let i = 0; i < files.length; i++) {
+                const eachFile = fileList[i];
+                const url = URL.createObjectURL(eachFile); // Create object URL for each file
+                objectURLs.push(url); // Store the object URL in the array
+            }
+            // storing file into imageUrlState
+            if (imageUrl === null) {
+                setImageUrl(objectURLs);
+            }
+            else {
+                const totalLength = imageUrl?.length + objectURLs?.length;
+                if (totalLength <= 3) {
+                    setImageUrl([...imageUrl, ...objectURLs]);
+                }
+            }
         }
 
     };
@@ -82,15 +92,31 @@ export default function AddProducts() {
         const updateFile = file.filter((_, index) => index !== indexToRemove);
         setFile(updateFile);
         setImageUrl(updatedImageUrl);
-        // Clear the file input value
-        fileInputRef.current.value = "";
+
+        // Get the file input element
+        const fileInput = document.getElementById("file-input");
+
+        // Get the files from the file input element
+        const files = fileInput?.files;
+
+        // Create a new FileList object to hold files you want to keep
+        const filesToKeep = new DataTransfer();
+
+        // Loop through the files and add files to the filesToKeep DataTransfer object
+        for (let i = 0; i < files.length; i++) {
+            if (i !== indexToRemove) {
+                filesToKeep.items.add(files[i]);
+            }
+        }
+        // Assign the filesToKeep DataTransfer object back to the file input element
+        fileInput.files = filesToKeep.files;
     };
 
     //  handleFileSubmit
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // console.log(title, description, category, price, newPrice, inStock, onSale, sizes, file);
+        console.log(title, description, category, price, newPrice, inStock, onSale, sizes, file);
 
         // Create a FormData object
         const formData = new FormData();
@@ -98,7 +124,7 @@ export default function AddProducts() {
         // Append the inputs and state data to the FormData object
         formData.append("title", title);
         formData.append("description", description);
-        formData.append("category", category);
+        // formData.append("category", category);
         formData.append("price", price);
         formData.append("newPrice", newPrice);
         formData.append("inStock", inStock);
@@ -136,7 +162,6 @@ export default function AddProducts() {
                 // Handle errors
             });
     }
-
 
     return (
         <div className="grid gap-5 shadow-md rounded-sm mx-2 sm:mx-4 md:mx-4 lg:mx-4 xl:mx-4 my-2 sm:my-4 md:my-4 lg:my-4 xl:my-4 p-2 sm:p-4 lg:p-4 md:p-4 xl:p-4">
@@ -283,24 +308,27 @@ export default function AddProducts() {
                         />
                     </div>
 
-                    {/* Product Image */}
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 border border-dashed p-2 rounded-md">
-                        {file !== null && file.map((fileItem, index) => (
-                            <div key={index} className="relative">
-                                {/* Remove Preview Image */}
-                                <div className="absolute top-0 right-0 hover:cursor-pointer"
-                                    onClick={() => handleRemoveImage(index)}
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                                    </svg>
+                    <div className="border border-dashed rounded-md p-1">
+
+                        {/* Product Image */}
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 p-2 rounded-md">
+                            {file !== null && file.map((fileItem, index) => (
+                                <div key={index} className="relative">
+                                    {/* Remove Preview Image */}
+                                    <div className="absolute top-0 right-0 hover:cursor-pointer"
+                                        onClick={() => handleRemoveImage(index)}
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                        </svg>
+                                    </div>
+                                    <img style={{ maxHeight: "300px", width: "100%", marginBottom: "10px" }}
+                                        src={imageUrl[index]} alt={`previewImage-${index}`}
+                                        className="rounded-md"
+                                    />
                                 </div>
-                                <img style={{ maxHeight: "300px", width: "100%", marginBottom: "10px" }}
-                                    src={imageUrl[index]} alt={`previewImage-${index}`}
-                                    className="rounded-md"
-                                />
-                            </div>
-                        ))}
+                            ))}
+                        </div>
 
                         <div className="w-full">
                             <input
@@ -311,7 +339,6 @@ export default function AddProducts() {
                                 style={{ display: 'none' }}
                                 id="file-input"
                                 name="image"
-                                ref={fileInputRef}
                                 multiple
                             />
 
