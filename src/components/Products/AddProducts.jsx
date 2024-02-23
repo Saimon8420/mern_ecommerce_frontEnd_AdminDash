@@ -2,16 +2,18 @@ import { Autocomplete, Button, TextField } from "@mui/material";
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { useEffect, useState } from "react";
 import { stringValidator } from "../../assets/regex";
+import { useNavigate } from "react-router-dom";
 
 export default function AddProducts() {
     const inStockVal = ["stock", "stockOut"];
-    const onSaleVal = ["onSale", "notSale"];
+    const onSaleVal = ["notSale", "onSale"];
     const productSizes = ["XS", "S", "M", "L", "XL", "2XL"];
 
     // states to save inputs
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [category, setCategory] = useState("");
+    const [loadCategory, setLoadCategory] = useState([]);
     const [file, setFile] = useState(null);
     const [imageUrl, setImageUrl] = useState(null);
     const [price, setPrice] = useState(0);
@@ -24,6 +26,16 @@ export default function AddProducts() {
     const [fileSizeError, setFileSizeError] = useState(false);
     const [titleError, setTitleError] = useState(false);
     const [descriptionError, setDescriptionError] = useState(false);
+
+    // load category
+    useEffect(() => {
+        const loadCategory = async () => {
+            const data = await fetch("http://localhost:9000/category/all");
+            const res = await data.json();
+            setLoadCategory(res.data);
+        }
+        loadCategory();
+    }, []);
 
     useEffect(() => {
         setTitleError(stringValidator.test(title));
@@ -116,7 +128,7 @@ export default function AddProducts() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        console.log(title, description, category, price, newPrice, inStock, onSale, sizes, file);
+        // console.log(title, description, category, price, newPrice, inStock, onSale, sizes, file);
 
         // Create a FormData object
         const formData = new FormData();
@@ -124,7 +136,7 @@ export default function AddProducts() {
         // Append the inputs and state data to the FormData object
         formData.append("title", title);
         formData.append("description", description);
-        // formData.append("category", category);
+        formData.append("category", category?._id);
         formData.append("price", price);
         formData.append("newPrice", newPrice);
         formData.append("inStock", inStock);
@@ -162,6 +174,12 @@ export default function AddProducts() {
                 // Handle errors
             });
     }
+
+    // console.log(category);
+
+    // console.log(file, sizes);
+
+    const navigate = useNavigate();
 
     return (
         <div className="grid gap-5 shadow-md rounded-sm mx-2 sm:mx-4 md:mx-4 lg:mx-4 xl:mx-4 my-2 sm:my-4 md:my-4 lg:my-4 xl:my-4 p-2 sm:p-4 lg:p-4 md:p-4 xl:p-4">
@@ -201,15 +219,29 @@ export default function AddProducts() {
                         <Autocomplete
                             disablePortal
                             id="combo-box-demo"
-                            options={onSaleVal}
+                            options={loadCategory.map(each => each?.title)}
                             className="w-full"
-                            renderInput={(params) => <TextField {...params} label="Category" />}
+                            renderInput={(params) =>
+                                <TextField {...params} label="Category" />
+                            }
+                            onChange={(e, selectedValues) => {
+                                if (selectedValues !== null) {
+                                    const matched = loadCategory.find(each => each?.title?.includes(selectedValues));
+                                    setCategory(matched);
+                                }
+                                else {
+                                    setCategory("");
+                                }
+                            }}
                             size="small"
                             required
                         />
 
                         {/* Sizes */}
                         <Autocomplete
+                            disabled={
+                                category !== null && !category?.title?.includes("clothing")
+                            }
                             disablePortal
                             id="combo-box-demo"
                             options={productSizes}
@@ -258,11 +290,10 @@ export default function AddProducts() {
                             disablePortal
                             id="combo-box-demo"
                             options={onSaleVal}
-                            // sx={{ width: 300 }}
                             renderInput={(params) => <TextField {...params} label="OnSale" />}
                             className="w-full"
                             size="small"
-                            defaultValue={onSaleVal[1]}
+                            defaultValue={onSaleVal[0]}
                             onChange={(e) => {
                                 if (e.target.innerText === onSaleVal[0]) {
                                     setOnSale(false);
@@ -363,16 +394,15 @@ export default function AddProducts() {
                         </div>
                     </div>
 
-
                     {/* Buttons */}
                     <hr />
                     <div className="flex justify-end gap-4">
-                        <Button variant="outlined" size="medium">
+                        <Button variant="outlined" size="medium" onClick={() => navigate("/")}>
                             Cancel
                         </Button>
 
                         <Button variant="contained" size="medium" type="Submit"
-                            disabled={(title === "") || (description === "") || (sizes.length === 0) || (file === null)}
+                            disabled={(title === "") || (description === "") || (!file === null || !file?.length === 0) || (category === "") || (!price > 0)}
                         >
                             Submit
                         </Button>
