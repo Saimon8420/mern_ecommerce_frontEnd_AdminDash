@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { stringValidator } from "../../assets/regex";
 import Loading from "../Loading/Loading";
-
+import DeleteTwoToneIcon from '@mui/icons-material/DeleteTwoTone';
 const UpdateProduct = () => {
     const params = useParams();
     const [loading, setLoading] = useState(false);
@@ -46,9 +46,17 @@ const UpdateProduct = () => {
             setPrice(res?.data?.price);
             setNewPrice(res?.data?.newPrice);
             setLoading(false);
+            setImageUrl(res?.data?.image.map(each => {
+                return each;
+            }));
+            setFile(res?.data?.image.map(each => {
+                return each;
+            }));
         }
         fetchData();
     }, [params?.id]);
+
+    // console.log(imageUrl);
 
     // load category
     useEffect(() => {
@@ -68,85 +76,108 @@ const UpdateProduct = () => {
 
     // handle imageUpload
     const handleImageFileChange = (e) => {
-        // Access the selected file from event.target.files
-        const files = e.target.files;
-        const maxSize = (1024 / 2) * 1024;
-        // to store files
-        const fileList = [];
-        if (files?.length > 3) {
-            alert("Maximum file limit crossed!");
+        if (imageUrl.length === 3) {
+            alert("Can't upload more than 3 files");
         }
         else {
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                if (file?.size > maxSize) {
-                    setFileSizeError(true);
-                }
-                else {
-                    fileList.push(file);
-                    setFileSizeError(false);
-                }
-            }
-            // storing file into states
-            if (file === null) {
-                setFile(fileList);
+            // Access the selected file from event.target.files
+            const files = e.target.files;
+            const maxSize = (1024 / 2) * 1024;
+            // to store files
+            const fileList = [];
+            if (files?.length > 3) {
+                alert("Maximum file limit crossed!");
             }
             else {
-                const totalLength = file?.length + fileList?.length;
-                if (totalLength <= 3) {
-                    setFile([...file, ...fileList]);
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i]; //local file variable
+                    if (file?.size > maxSize) {
+                        setFileSizeError(true);
+                    }
+                    else {
+                        fileList.push(file);
+                        setFileSizeError(false);
+                    }
+                }
+                // storing file into states
+                if (file === null) {
+                    setFile(fileList);
                 }
                 else {
-                    alert("Maximum file limit crossed!");
+                    const totalLength = file?.length + fileList?.length;
+                    if (totalLength <= 3) {
+                        setFile([...file, ...fileList]);
+                    }
+                    else {
+                        alert("Maximum file limit crossed!");
+                    }
                 }
-            }
 
-            // Create URL for the selected image
-            const objectURLs = []; // Array to store object URLs for each file
-            for (let i = 0; i < files.length; i++) {
-                const eachFile = fileList[i];
-                const url = URL.createObjectURL(eachFile); // Create object URL for each file
-                objectURLs.push(url); // Store the object URL in the array
-            }
-            // storing file into imageUrlState
-            if (imageUrl === null) {
-                setImageUrl(objectURLs);
-            }
-            else {
-                const totalLength = imageUrl?.length + objectURLs?.length;
-                if (totalLength <= 3) {
-                    setImageUrl([...imageUrl, ...objectURLs]);
+                // Create URL for the selected image
+                const objectURLs = []; // Array to store object URLs for each file
+                for (let i = 0; i < files.length; i++) {
+                    const eachFile = fileList[i];
+                    const url = URL.createObjectURL(eachFile); // Create object URL for each file
+                    objectURLs.push(url); // Store the object URL in the array
+                }
+                // storing file into imageUrlState
+                if (imageUrl === null) {
+                    setImageUrl(objectURLs);
+                }
+                else {
+                    const totalLength = imageUrl?.length + objectURLs?.length;
+                    console.log(objectURLs);
+                    if (totalLength <= 3) {
+                        const secureUrls = objectURLs.map(url => ({ secure_url: url }));
+                        setImageUrl([...imageUrl, ...secureUrls]);
+                    }
                 }
             }
         }
-
     };
+
+    console.log(file);
+    console.log(imageUrl);
 
     // handle RemoveImage
+    const [removeImage, setRemoveImage] = useState([]); // store remove image to send it backend, from here it will deleted
     const handleRemoveImage = (indexToRemove) => {
-        const updatedImageUrl = imageUrl.filter((_, index) => index !== indexToRemove);
-        const updateFile = file.filter((_, index) => index !== indexToRemove);
-        setFile(updateFile);
-        setImageUrl(updatedImageUrl);
+        const confirm = prompt("Image will remove permanently. Sure to remove this permanently? then type 'yes' or 'y' ");
+        console.log(confirm);
+        if (confirm !== null && confirm?.toLowerCase() === "yes" || confirm?.toLocaleLowerCase() === "y") {
+            const updatedImageUrl = imageUrl.filter((_, index) => index !== indexToRemove);
+            const updateFile = file.filter((_, index) => index !== indexToRemove);
+            const exist = imageUrl.find((_, index) => index === indexToRemove);
+            setRemoveImage([...removeImage, exist]);
+            setFile(updateFile);
+            setImageUrl(updatedImageUrl);
 
-        // Get the file input element
-        const fileInput = document.getElementById("file-input");
+            // Get the file input element
+            const fileInput = document.getElementById("file-input");
 
-        // Get the files from the file input element
-        const files = fileInput?.files;
+            // Get the files from the file input element
+            const files = fileInput?.files;
 
-        // Create a new FileList object to hold files you want to keep
-        const filesToKeep = new DataTransfer();
+            // Create a new FileList object to hold files you want to keep
+            const filesToKeep = new DataTransfer();
 
-        // Loop through the files and add files to the filesToKeep DataTransfer object
-        for (let i = 0; i < files.length; i++) {
-            if (i !== indexToRemove) {
-                filesToKeep.items.add(files[i]);
+            // Loop through the files and add files to the filesToKeep DataTransfer object
+            for (let i = 0; i < files.length; i++) {
+                if (i !== indexToRemove) {
+                    filesToKeep.items.add(files[i]);
+                }
             }
+            // Assign the filesToKeep DataTransfer object back to the file input element
+            fileInput.files = filesToKeep.files;
         }
-        // Assign the filesToKeep DataTransfer object back to the file input element
-        fileInput.files = filesToKeep.files;
     };
+
+    // send removed Image to Server
+    useEffect(() => {
+
+    }, []);
+
+    // console.log(removeImage);
 
     //  handleFileSubmit
     const handleSubmit = async (e) => {
@@ -367,18 +398,16 @@ const UpdateProduct = () => {
 
                                 {/* Product Image */}
                                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 p-2 rounded-md">
-                                    {file !== null && file.map((fileItem, index) => (
+                                    {imageUrl !== null && imageUrl.map((each, index) => (
                                         <div key={index} className="relative">
                                             {/* Remove Preview Image */}
                                             <div className="absolute top-0 right-0 hover:cursor-pointer"
                                                 onClick={() => handleRemoveImage(index)}
                                             >
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                                                </svg>
+                                                <p className="text-red-500"><DeleteTwoToneIcon /></p>
                                             </div>
                                             <img style={{ maxHeight: "300px", width: "100%", marginBottom: "10px" }}
-                                                src={imageUrl[index]} alt={`previewImage-${index}`}
+                                                src={each?.secure_url} alt={`previewImage-${index}`}
                                                 className="rounded-md"
                                             />
                                         </div>
@@ -405,7 +434,8 @@ const UpdateProduct = () => {
                                         </Button>
                                     </label>
                                     {
-                                        file !== null && <p className="my-2">{file?.length} file selected</p>
+                                        file !== null &&
+                                        <p className="my-2">{document.getElementById("file-input")?.files?.length} file selected</p>
                                     }
                                     {
                                         fileSizeError ?
